@@ -21,15 +21,15 @@ class Alice:
         self.random = [self.group.random(ZR) for i in range(2)]
         self.keys = [self.A0, self.A1]
 
-    def get_public_data(self):
+    def getPublicKey(self):
         return self.generator, self.pk
 
-    def generate_random(self):
+    def generateRandom(self):
         return [self.generator ** self.random[i] for i in range(2)]
 
-    def masquarade(self, _set):
-        masqueraded = [_set ** (1 / self.random[i]) for i in range(2)]
-        return [masqueraded[i] * self.message[i] for i in range(2)]
+    def mask(self, set):
+        mask = [set ** (1 / self.random[i]) for i in range(2)]
+        return [mask[i] * self.message[i] for i in range(2)]
 
 
 class Bob:
@@ -42,20 +42,20 @@ class Bob:
     def returnC0C1(self):
         return self.C0, self.C1
 
-    def compute_set(self, random, key):
+    def computeSet(self, random, key):
         self.key = key
         self.alpha = self.group.random(ZR)
         _set = random[key] ** self.alpha
         return _set
 
-    def compute_message(self, masqueraded):
-        self.message = masqueraded[self.key] / (self.generator ** self.alpha)
+    def computeMessage(self, mas):
+        self.message = mas[self.key] / (self.generator ** self.alpha)
         return self.message
 
-    def decrypt(self, Table, key, alice_keys):
-        for i, t in enumerate(Table):
+    def decrypt(self, table, key, alice_keys):
+        for i, t in enumerate(table):
             try:
-                a = dec(alice_keys[key], self.message, t)
+                a = decrypt(alice_keys[key], self.message, t)
                 if a == self.C1:
                     print("C1")
                 elif a == self.C0:
@@ -64,45 +64,41 @@ class Bob:
                 pass
 
 
-def enc(k1, k2, msg):
+def encrypt(k1, k2, msg):
     a1 = SymmetricCryptoAbstraction(h(k1))
     a2 = SymmetricCryptoAbstraction(h(k2))
     c = a2.encrypt(a1.encrypt(msg))
     return c
 
 
-def dec(k1, k2, ctx):
+def decrypt(k1, k2, ctx):
     a1 = SymmetricCryptoAbstraction(h(k1))
     a2 = SymmetricCryptoAbstraction(h(k2))
     expansion_ratio = a1.decrypt((a2.decrypt(ctx)).decode("utf-8"))
     return expansion_ratio
 
 
-def main():
-    group = PairingGroup('SS512')
+group = PairingGroup('SS512')
 
-    alice = Alice(group)
-    generator, pk = alice.get_public_data()
-    bob = Bob(group, generator, pk)
+alice = Alice(group)
+generator, pk = alice.getPublicKey()
+bob = Bob(group, generator, pk)
 
-    C0, C1 = bob.returnC0C1()
-    Table = [
-        enc(alice.A0, alice.B0, C0),
-        enc(alice.A0, alice.B1, C0),
-        enc(alice.A1, alice.B0, C0),
-        enc(alice.A1, alice.B1, C1)
-    ]
+C0, C1 = bob.returnC0C1()
+alice_key = 1
+bob_key = 1
 
-    # OT
-    random = alice.generate_random()
-    alice_key = 1
-    _set = bob.compute_set(random, alice_key)
-    masqueraded = alice.masquarade(_set)
-    message = bob.compute_message(masqueraded)  # ?
+garbledCircuit = [
+    encrypt(alice.A0, alice.B0, C0),
+    encrypt(alice.A0, alice.B1, C0),
+    encrypt(alice.A1, alice.B0, C0),
+    encrypt(alice.A1, alice.B1, C1)
+]
 
-    bob_key = 1
-    bob.decrypt(Table, bob_key, alice.keys)
+# Oblivious transfer
+random = alice.generateRandom()
+set = bob.computeSet(random, alice_key)
+mask = alice.mask(set)
+message = bob.computeMessage(mask)  # ?
 
-
-if __name__ == "__main__":
-    main()
+bob.decrypt(garbledCircuit, bob_key, alice.keys)

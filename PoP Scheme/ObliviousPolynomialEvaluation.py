@@ -1,4 +1,4 @@
-import random
+import random, time
 from functools import reduce
 
 from charm.core.math.integer import reduce as reduce_int
@@ -6,17 +6,17 @@ from charm.toolbox.integergroup import IntegerGroupQ, integer
 
 
 class Polynomial:
-    def __init__(self, coef):
-        self.coef = list(coef)
+    def __init__(self, coefficient):
+        self.coefficient = list(coefficient)
 
-    def __get_item__(self, item):
-        return self.coef[item]
+    def getItem(self, item):
+        return self.coefficient[item]
 
     def __set_item__(self, item, value):
-        self.coef[item] = value
+        self.coefficient[item] = value
 
     def __call__(self, element):
-        return reduce_int(reduce(lambda acc, a: acc * element + a, reversed(self.coef)))
+        return reduce_int(reduce(lambda acc, a: acc * element + a, reversed(self.coefficient)))
 
 
 def product(values):
@@ -54,7 +54,7 @@ class Bob:
         self.S = Polynomial([group.random() for _ in range(k + 1)])
         self.S.__set_item__(0, self.alpha)
 
-    def generate_R(self, expansion_ratio, degree_of_polynomial):
+    def generateR(self, expansion_ratio, degree_of_polynomial):
         self.n = degree_of_polynomial * self.k + 1
         self.N = self.n * expansion_ratio
         self.T = list(range(self.N))
@@ -65,28 +65,27 @@ class Bob:
         R = [(x, self.S(x) if i in self.T else self.group.random()) for i, x in enumerate(self.X)]
         return R
 
-    def get_value(self, Q):
+    def getValue(self, Q):
         A = [xq for i, xq in enumerate(Q) if i in self.T]
         value = lagrange_interpolation(A, integer(0, self.group.q))
         return value
 
 
-def main():
-    group = IntegerGroupQ()
-    group.paramgen(256)
+group = IntegerGroupQ()
+group.paramgen(256)
 
-    k = 5  # n = k * degree_of_polynomial
-    degree_of_polynomial = 10
-    expansion_ratio = 5
+k = 5  # n = k * degree_of_polynomial
+degree_of_polynomial = 10
+expansion_ratio = 5
 
-    alice = Alice(group, k, degree_of_polynomial)
-    bob = Bob(group, k)
+start = time.time()
+alice = Alice(group, k, degree_of_polynomial)
+bob = Bob(group, k)
 
-    R = bob.generate_R(expansion_ratio, degree_of_polynomial)
-    Q = alice.generate_Q(R)
+R = bob.generateR(expansion_ratio, degree_of_polynomial)
+Q = alice.generate_Q(R)
 
-    print(alice.polynomial.__call__(bob.alpha) == bob.get_value(Q))
+end = time.time()
 
-
-if __name__ == "__main__":
-    main()
+print(alice.polynomial.__call__(bob.alpha) == bob.getValue(Q))
+print("Execution time {}s".format(end - start))

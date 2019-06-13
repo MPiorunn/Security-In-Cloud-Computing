@@ -1,9 +1,8 @@
-#!/usr/bin/python3
-
 from charm.toolbox.pairinggroup import PairingGroup, ZR, G1
+import time
 
 
-class Initiator:
+class Alice:
     def __init__(self, group, private_set):
         self.group = group
         self.private_set = private_set
@@ -18,7 +17,7 @@ class Initiator:
         return list(common_elements)
 
 
-class Receiver:
+class Bob:
     def __init__(self, group, private_set):
         self.group = group
         self.private_set = private_set
@@ -32,22 +31,26 @@ class Receiver:
 
 def generate_sets(group, intersecting, set_size):
     intersection = group.random(ZR, intersecting)
-    initiator_set = group.random(ZR, set_size - intersecting) + intersection
-    receiver_set = group.random(ZR, set_size - intersecting) + intersection
-    return initiator_set, receiver_set
+    alice_set = group.random(ZR, set_size - intersecting) + intersection
+    bob_set = group.random(ZR, set_size - intersecting) + intersection
+    return alice_set, bob_set
 
 
-def main():
-    g = PairingGroup('SS512')
-    initiator_set, receiver_set = generate_sets(g, 136, 500)
-    initiator = Initiator(g, initiator_set)
-    receiver = Receiver(g, receiver_set)
+g = PairingGroup('SS512')
 
-    masked_initiator_set = initiator.get_masked_set()
-    masked_receiver_set, challenge = receiver.get_masked_set(masked_initiator_set)
-    common_elements = initiator.verify(masked_receiver_set, challenge)
-    print("Initiator and receiver have {0} common elements".format(len(common_elements)))
+intersecting_amount = 100
+total_amount = 600
+start = time.time()
+initiator_set, receiver_set = generate_sets(g, intersecting_amount, total_amount)
+alice = Alice(g, initiator_set)
+bob = Bob(g, receiver_set)
 
-
-if __name__ == "__main__":
-    main()
+masked_alice_set = alice.get_masked_set()
+masked_bob_set, challenge = bob.get_masked_set(masked_alice_set)
+common_elements = alice.verify(masked_bob_set, challenge)
+end = time.time()
+if intersecting_amount == len(common_elements):
+    print("Alice and Bob have {0} common elements".format(len(common_elements)))
+    print("Execution time {}s".format(end - start))
+else:
+    print("Desired amount of intersecting items does not match calculated one")

@@ -1,4 +1,5 @@
 from charm.toolbox.pairinggroup import PairingGroup, G1, ZR
+import time
 
 
 class Client:
@@ -109,9 +110,10 @@ class Server:
 group = PairingGroup('SS512')
 client = Client(group)
 server = Server(group)
-
+# start time measurement
+start = time.time()
 # Procedure 1 - setup algorithm
-client.Setup(10)
+client.Setup(100)
 
 # Procedure 2 - polynomial generating sub-procedure
 client.Poly(group)
@@ -128,7 +130,10 @@ proof = server.GenProof(tagged_block, challenge)
 # Procedure 6 - Proof procedure CheckProof
 result = client.CheckProof(proof)
 
+# end time measurement
+end = time.time()
 if result:
     print("Accept")
+    print("Execution time {}s".format(end - start))
 else:
     print("Reject")

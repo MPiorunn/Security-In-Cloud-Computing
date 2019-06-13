@@ -1,5 +1,5 @@
 from charm.toolbox.pairinggroup import PairingGroup, ZR, G1
-
+import time
 
 class ELGamal:
     def __init__(self, group, generator):
@@ -62,15 +62,19 @@ generator, public_key = alice.generatePublicKey()
 elgamal = ELGamal(group, generator)
 
 bob = Bob(group, generator, public_key)
+start = time.time()
+
 B = bob.mask()
 if B is not None:
     m0 = group.random(G1)
     m1 = group.random(G1)
     ciphers = alice.PrepareMessages(B, m0, m1, elgamal)
     decrypted = bob.decode(ciphers, elgamal)
+    end = time.time()
     if m0 == decrypted:
         print("Decrypted message 1")
     elif m1 == decrypted:
         print("Decrypted message 2")
     else:
         print("None of two messages were decrypted, error")
+    print("Execution time {}s".format(end - start))

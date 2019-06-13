@@ -1,7 +1,7 @@
 from charm.core.math.integer import isPrime, gcd, random, randomPrime, toInt
+import time
 
-
-class RSA():
+class RSA:
     def __init__(self, secparam):
 
         # generate p,q
@@ -67,6 +67,7 @@ sk, pk = rsa.keygen()
 alice = Alice(sk, pk)
 bob = Bob(pk)
 
+start = time.time()
 randoms = alice.randomGen()
 # specify index of message that Bob wants to compute
 index = 10
@@ -76,8 +77,11 @@ vector = bob.computeVector(randoms, index)
 masked = alice.mask(vector)
 message = bob.computeMessage(masked)
 
+end = time.time()
 # scheme verification
 if message == alice.message[index]:
     print("SUCCESS")
+    print("Execution time {}s".format(end - start))
+
 else:
     print("FAILURE")
