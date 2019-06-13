@@ -1,8 +1,10 @@
 from charm.core.math.integer import isPrime, gcd, random, randomPrime, toInt
 
 
-class RSA():
+class RSA:
     def __init__(self, secparam):
+
+        # generate p,q
         while True:
             p, q = randomPrime(secparam), randomPrime(secparam)
             if isPrime(p) and isPrime(q) and p != q:
@@ -10,6 +12,7 @@ class RSA():
                 phi = (p - 1) * (q - 1)
                 break
 
+        # calculate private key and public key
         while True:
             e = random(phi)
             if not gcd(e, phi) == 1:
@@ -17,7 +20,10 @@ class RSA():
             d = e ** -1
             break
 
+        # prepare public key
         self.pk = {'N': N, 'e': toInt(e)}
+
+        # prepare private key
         self.sk = {'phi': phi, 'd': d, 'N': N}
 
     def keygen(self):
@@ -34,37 +40,44 @@ class Alice:
         self.randoms = [random(self.sk['N']) for i in range(100)]
         return self.randoms
 
-    def masquarade(self, vector):
-        masqueraded = [((vector - self.randoms[i]) ** self.sk['d']) % self.sk['N'] for i in range(len(self.message))]
-        return [self.message[i] + masqueraded[i] for i in range(len(self.message))]
+    def mask(self, vector):
+        masked = [((vector - self.randoms[i]) ** self.sk['d']) % self.sk['N'] for i in range(len(self.message))]
+        return [self.message[i] + masked[i] for i in range(len(self.message))]
 
 
 class Bob:
     def __init__(self, pk):
         self.pk = pk
 
-    def computeVector(self, randoms, num):
-        self.num = num
+    def computeVector(self, randoms, index):
+        self.index = index
         self.k = random(self.pk['N'])
-        vector = (randoms[num] + self.k ** self.pk['e']) % self.pk['N']
+        vector = (randoms[index] + self.k ** self.pk['e']) % self.pk['N']
         return vector
 
-    def computeMessage(self, masqueraded):
-        return masqueraded[self.num] - self.k
+    def computeMessage(self, masked):
+        return masked[self.index] - self.k
 
 
-def main():
-    rsa = RSA(1024)
-    sk, pk = rsa.keygen()
-    alice = Alice(sk, pk)
-    bob = Bob(pk)
-    randoms = alice.randomGen()
-    num = 10
-    vector = bob.computeVector(randoms, num)
-    masqueraded = alice.masquarade(vector)
-    message = bob.computeMessage(masqueraded)
-    print(message == alice.message[num])
+# RSA
+rsa = RSA(1024)
+sk, pk = rsa.keygen()
 
+# parties init
+alice = Alice(sk, pk)
+bob = Bob(pk)
 
-if __name__ == "__main__":
-    main()
+randoms = alice.randomGen()
+# specify index of message that Bob wants to compute
+index = 10
+
+vector = bob.computeVector(randoms, index)
+
+masked = alice.mask(vector)
+message = bob.computeMessage(masked)
+
+# scheme verification
+if message == alice.message[index]:
+    print("SUCCESS")
+else:
+    print("FAILURE")

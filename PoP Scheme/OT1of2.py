@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 from charm.toolbox.pairinggroup import PairingGroup, ZR, G1
 
 
@@ -16,30 +14,31 @@ class ELGamal:
         return C[1] / (C[0] ** x)
 
 
-class Sender:
+class Alice:
     def __init__(self, group):
         self.group = group
         self.secret_key = self.group.random(ZR)
         self.generator = self.group.random(G1)
         self.public_key = self.generator ** self.secret_key
 
-    def GetPublicKey(self):
+    def generatePublicKey(self):
         return self.generator, self.public_key
 
-    def PrepareMessages(self, B, M1, M2, elgamal):
+    def PrepareMessages(self, B, m0, m1, elgamal):
         k0 = self.group.hash(self.group.serialize(B ** self.secret_key))
         k1 = self.group.hash(self.group.serialize((B / self.public_key) ** self.secret_key))
         h0 = self.generator ** k0
         h1 = self.generator ** k1
-        return elgamal.encrypt(M1, h0), elgamal.encrypt(M2, h1)
+        return elgamal.encrypt(m0, h0), elgamal.encrypt(m1, h1)
 
 
-class Receiver:
-    def __init__(self, group, generator, public_key, c):
+class Bob:
+    def __init__(self, group, generator, public_key):
         self.group = group
         self.generator = generator
         self.public_key = public_key
-        self.c = c
+        # which message Bob wants to receive
+        self.c = 0
         self.b = self.group.random(ZR)
 
     def mask(self):
@@ -55,27 +54,23 @@ class Receiver:
         return elgamal.decrypt(ciphers[self.c], k)
 
 
-def main():
-    group = PairingGroup('SS512')
-    sender = Sender(group)
-    generator, public_key = sender.GetPublicKey()
-    elgamal = ELGamal(group, generator)
+group = PairingGroup('SS512')
 
-    c = 0  # 0=>M1   1=>M2
-    receiver = Receiver(group, generator, public_key, c)
-    B = receiver.mask()
-    if B is not None:
-        M1 = group.random(G1)
-        M2 = group.random(G1)
-        ciphers = sender.PrepareMessages(B, M1, M2, elgamal)
-        decrypted = receiver.decode(ciphers, elgamal)
-        if M1 == decrypted:
-            print("M1")
-        elif M2 == decrypted:
-            print("M2")
-        else:
-            print("Error")
+alice = Alice(group)
+generator, public_key = alice.generatePublicKey()
 
+elgamal = ELGamal(group, generator)
 
-if __name__ == "__main__":
-    main()
+bob = Bob(group, generator, public_key)
+B = bob.mask()
+if B is not None:
+    m0 = group.random(G1)
+    m1 = group.random(G1)
+    ciphers = alice.PrepareMessages(B, m0, m1, elgamal)
+    decrypted = bob.decode(ciphers, elgamal)
+    if m0 == decrypted:
+        print("Decrypted message 1")
+    elif m1 == decrypted:
+        print("Decrypted message 2")
+    else:
+        print("None of two messages were decrypted, error")
