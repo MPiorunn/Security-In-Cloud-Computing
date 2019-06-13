@@ -1,7 +1,7 @@
 from charm.core.math.integer import isPrime, gcd, random, randomPrime, toInt
 
 
-class RSA:
+class RSA():
     def __init__(self, secparam):
 
         # generate p,q

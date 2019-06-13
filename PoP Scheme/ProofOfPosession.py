@@ -1,31 +1,29 @@
 from charm.toolbox.pairinggroup import PairingGroup, G1, ZR
 
 
-class Client():
-    group = 0
-    z = 0  # number of subblocks
-    sk = 0
-    g = 0
-    file_id = []
-    polynomial = []
-    Kf = 0
+class Client:
 
     def __init__(self, group):
-        Client.group = group
+        self.group = group
 
     def Setup(self, z):
-        Client.z = z
-        Client.g = Client.group.random(G1)
-        Client.sk = Client.group.random(ZR)
-
-        for i in range(0, 10):
-            Client.file_id.append(Client.group.random(ZR))
+        self.z = z
+        self.g = self.group.random(G1)
+        self.sk = self.group.random(ZR)
+        self.file_id = []
+        for i in range(0, z):
+            self.file_id.append(self.group.random(ZR))
 
     def Poly(self, group):
-        for i in range(0, Client.z):
-            Client.polynomial.append(Client.group.hash((Client.sk, Client.file_id[i], i)))
+        # create a polynomial of degree 'z'
+        self.polynomial = []
+        for i in range(0, self.z):
+            # ai <- SPRNG(sk,id(f),.,i)
+            self.polynomial.append(self.group.hash((self.sk, self.file_id[i], i)))
 
-    def EvaluatePolynomial(coefficients, x):
+    #     L_f(x) <- sum a_i x^i
+
+    def EvaluatePolynomial(self, coefficients, x):
         if len(coefficients) == 0:
             return
         elif len(coefficients) == 1:
@@ -41,54 +39,57 @@ class Client():
 
     def TagBlock(self, group):
         TaggedBlock = []
-        for i in range(Client.z):
-            y = Client.EvaluatePolynomial(Client.polynomial, Client.file_id[i])
-            TaggedBlock.append((Client.file_id[i], y))
+        for i in range(self.z):
+            y = self.EvaluatePolynomial(self.polynomial, self.file_id[i])
+            TaggedBlock.append((self.file_id[i], y))
         return TaggedBlock
 
     def GenChallenge(self, group):
-        zero = Client.group.random(ZR)
-        zero -= zero
-        r = Client.group.random(ZR)
-        xc = Client.group.random(ZR)
-        for i in range(Client.z):
-            if (xc == Client.file_id[i]):
+        # r <- Zq
+        r = self.group.random(ZR)
+        # x_c <- Zq x_c != m_i
+        xc = self.group.random(ZR)
+        for i in range(self.z):
+            if xc == self.file_id[i]:
                 xc = group.random(ZR)
-                i = 0
-        Lfxc = Client.EvaluatePolynomial(Client.polynomial, xc)
-        Lfxo = Client.EvaluatePolynomial(Client.polynomial, zero)
-        R = Client.g ** r
-        Client.Kf = R ** Lfxc
-        H = (R, xc, R ** Lfxo)
+                break
+
+        Lf_xc = self.EvaluatePolynomial(self.polynomial, xc)
+        Lf_xo = self.EvaluatePolynomial(self.polynomial, 0)
+
+        R = self.g ** r
+        # K_f = g^rL_f(x_c)
+        self.Kf = R ** Lf_xc
+        # H < <g^r, x_c , g^rLf(0))
+        H = (R, xc, R ** Lf_xo)
         return H
 
-    def CheckProof(self, Pf):
-        if Client.Kf == Pf:
-            return True
-        else:
-            return False
+    def CheckProof(self, pf):
+        return self.Kf == pf
 
 
-class Server():
-    group = 0
-
+class Server:
     def __init__(self, group):
-        Server.group = group
+        self.group = group
 
-    def GenProof(self, TaggedBlock, H):
-        zero = Server.group.random(ZR)
-        zero = zero - zero
+    def GenProof(self, tagged_block, H):
+        # poseidon weapon sign - trident
         psi = []
-        for i in range(len(TaggedBlock)):
-            psi.append((TaggedBlock[i][0], H[0] ** TaggedBlock[i][1]))
+        for i in range(len(tagged_block)):
+            # psi <- psi U {(m_i,(g^r)^ti)}
+            psi.append((tagged_block[i][0], H[0] ** tagged_block[i][1]))
+        # trident prim
+        # psi prim <- psi U {(0,g^rL_f(0))}
         psi_prim = psi
-        psi_prim.insert(0, (zero, H[2]))
-        Pf = Server.LagrangeInterpolation(H[1], psi_prim)
+        psi_prim.insert(0, (0, H[2]))
+        # Pf <- LIexp (x_c, psi prim)
+        Pf = self.LagrangianInterpolation(H[1], psi_prim)
         return Pf
 
-    def LagrangeInterpolation(S, points):
+    def LagrangianInterpolation(self, S, points):
+        # CREATE A POLYNOMIAL L_f (x) FROM POINTS (x_1,y_1)...(x_n, y_n)
         r = ()
-        t = Server.group.random(ZR)
+        t = self.group.random(ZR)
         t = t / t
         for i in range(len(points)):
             for j in range(len(points)):
@@ -96,32 +97,38 @@ class Server():
                     t = t * (S - points[j][0]) / (points[i][0] - points[j][0])
             v = t * points[i][1]
             r += (v,)
-            t = t / t
-        p = Server.group.random(G1)
-        p = p - p
+            t /= t
+        p = self.group.random(G1)
+        p -= p
         for i in range(0, len(r)):
             p += r[i]
         return p
 
 
-def main():
-    group = PairingGroup('SS512')
+# initialize group, client and server
+group = PairingGroup('SS512')
+client = Client(group)
+server = Server(group)
 
-    c = Client(group)
-    c.Setup(10)
-    c.Poly(group)
-    tagged_block = c.TagBlock(group)
-    challenge = c.GenChallenge(group)
+# Procedure 1 - setup algorithm
+client.Setup(10)
 
-    s = Server(group)
-    proof = s.GenProof(tagged_block, challenge)
+# Procedure 2 - polynomial generating sub-procedure
+client.Poly(group)
 
-    result = c.CheckProof(proof)
+# Procedure 3 - tag generating procedure
+tagged_block = client.TagBlock(group)
 
-    if result:
-        print("SUCCESS")
-    else:
-        print("ERROR")
+# Procedure 4 - Generating a challenge
+challenge = client.GenChallenge(group)
 
+# Procedure 5 - Proof procedure GenProof
+proof = server.GenProof(tagged_block, challenge)
 
-main()
+# Procedure 6 - Proof procedure CheckProof
+result = client.CheckProof(proof)
+
+if result:
+    print("Accept")
+else:
+    print("Reject")
