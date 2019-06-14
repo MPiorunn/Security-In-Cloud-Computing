@@ -1,4 +1,4 @@
-import os
+import os, random
 
 from charm.core.math.pairing import hashPair as h
 from charm.toolbox.pairinggroup import PairingGroup, ZR, G1
@@ -45,11 +45,10 @@ class Bob:
     def computeSet(self, random, key):
         self.key = key
         self.alpha = self.group.random(ZR)
-        _set = random[key] ** self.alpha
-        return _set
+        return random[key] ** self.alpha
 
-    def computeMessage(self, mas):
-        self.message = mas[self.key] / (self.generator ** self.alpha)
+    def computeMessage(self, mask):
+        self.message = mask[self.key] / (self.generator ** self.alpha)
         return self.message
 
     def decrypt(self, table, key, alice_keys):
@@ -57,9 +56,9 @@ class Bob:
             try:
                 a = decrypt(alice_keys[key], self.message, t)
                 if a == self.C1:
-                    print("C1")
+                    print("Result = 1")
                 elif a == self.C0:
-                    print("C0")
+                    print("Result = 0")
             except:
                 pass
 
@@ -86,7 +85,7 @@ bob = Bob(group, generator, pk)
 
 C0, C1 = bob.returnC0C1()
 alice_key = 1
-bob_key = 1
+bob_key = 0
 
 garbledCircuit = [
     encrypt(alice.A0, alice.B0, C0),
@@ -94,11 +93,16 @@ garbledCircuit = [
     encrypt(alice.A1, alice.B0, C0),
     encrypt(alice.A1, alice.B1, C1)
 ]
+# shuffle circuit
+random.shuffle(garbledCircuit)
+random = alice.generateRandom()
 
 # Oblivious transfer
-random = alice.generateRandom()
 set = bob.computeSet(random, alice_key)
+
+# mask messages
 mask = alice.mask(set)
-message = bob.computeMessage(mask)  # ?
+
+message = bob.computeMessage(mask)  #
 
 bob.decrypt(garbledCircuit, bob_key, alice.keys)

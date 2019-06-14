@@ -34,8 +34,12 @@ def lagrange_interpolation(points, xc):
 class Alice:
     def __init__(self, group, k, degree_of_polynomial):
         self.group = group
+
+        # create Alices polynomial
         self.polynomial = Polynomial([group.random() for _ in range(degree_of_polynomial + 1)])
+        # create masked polynomial
         self.masked_polynomial = Polynomial([group.random() for _ in range(degree_of_polynomial * k + 1)])
+        # add point 0,0 to polynomial
         self.masked_polynomial.__set_item__(0, integer(0, group.q))
 
     def Q(self, x, y):
@@ -51,6 +55,7 @@ class Bob:
         self.k = k
         self.group = group
         self.alpha = group.random()
+        # Generate Bobs polynomial S to mask point A
         self.S = Polynomial([group.random() for _ in range(k + 1)])
         self.S.__set_item__(0, self.alpha)
 
@@ -79,13 +84,19 @@ degree_of_polynomial = 10
 expansion_ratio = 5
 
 start = time.time()
+# generate polynomial and masked polynomial with point (0,0)
 alice = Alice(group, k, degree_of_polynomial)
 bob = Bob(group, k)
 
+# polynomial used to calculate P(A)
 R = bob.generateR(expansion_ratio, degree_of_polynomial)
+# generate Q polynomial, one of points of this polynomial will be Bobs wanted
 Q = alice.generate_Q(R)
 
 end = time.time()
 
-print(alice.polynomial.__call__(bob.alpha) == bob.getValue(Q))
-print("Execution time {}s".format(end - start))
+print(alice)
+if alice.polynomial.__call__(bob.alpha) == bob.getValue(Q):
+    print("What Alice sent {}".format(alice.polynomial.__call__(bob.alpha)))
+    print("What obtained Bob {}".format(bob.getValue(Q)))
+    print("Execution time {}s".format(end - start))

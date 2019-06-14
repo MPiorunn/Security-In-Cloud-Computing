@@ -39,7 +39,7 @@ def generate_sets(group, intersecting, set_size):
 g = PairingGroup('SS512')
 
 intersecting_amount = 100
-total_amount = 600
+total_amount = 300
 start = time.time()
 initiator_set, receiver_set = generate_sets(g, intersecting_amount, total_amount)
 alice = Alice(g, initiator_set)

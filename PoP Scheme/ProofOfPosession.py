@@ -83,6 +83,7 @@ class Server:
         # psi prim <- psi U {(0,g^rL_f(0))}
         psi_prim = psi
         psi_prim.insert(0, (0, H[2]))
+
         # Pf <- LIexp (x_c, psi prim)
         Pf = self.LagrangianInterpolation(H[1], psi_prim)
         return Pf
