@@ -12,7 +12,10 @@ class Alice:
 
     def maskSet(self):
         # A[i] = (H(xi))^a
-        maskedSet = [self.group.hash(item, G1) ** self.secretKey for item in self.private_set]
+        # maskedSet = [self.group.hash(item, G1) ** self.secretKey for item in self.private_set]
+
+        # A[i] = (xi)^a
+        maskedSet = [item ** self.secretKey for item in self.private_set]
         return maskedSet
 
     def verify(self, receiver_set, challenge):
@@ -33,7 +36,11 @@ class Bob:
 
     def maskSet(self, initiator_set):
         # B[i] = (H(yi))**b
-        masked_set = [self.group.hash(item, G1) ** self.secretKey for item in self.private_set]
+        # masked_set = [self.group.hash(item, G1) ** self.secretKey for item in self.private_set]
+
+        # B[i] = (yi)**b
+        masked_set = [item ** self.secretKey for item in self.private_set]
+
         # C[i] = A[i]**b
         challenge = [item ** self.secretKey for item in initiator_set]
         return masked_set, challenge

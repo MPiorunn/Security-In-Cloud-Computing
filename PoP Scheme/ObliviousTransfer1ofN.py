@@ -1,6 +1,7 @@
 from charm.core.math.integer import isPrime, gcd, random, randomPrime, toInt
 import time
 
+
 class RSA:
     def __init__(self, secparam):
 
@@ -31,13 +32,13 @@ class RSA:
 
 
 class Alice:
-    def __init__(self, sk, pk):
+    def __init__(self, sk, pk, count):
         self.sk = sk
         self.pk = pk
-        self.message = [random(sk['N']) for i in range(100)]
+        self.message = [random(sk['N']) for i in range(count)]
 
     def randomGen(self):
-        self.randoms = [random(self.sk['N']) for i in range(100)]
+        self.randoms = [random(self.sk['N']) for i in range(count)]
         return self.randoms
 
     def mask(self, vector):
@@ -63,8 +64,9 @@ class Bob:
 rsa = RSA(1024)
 sk, pk = rsa.keygen()
 
-# parties init
-alice = Alice(sk, pk)
+# parties init ,
+messages_count = 100
+alice = Alice(sk, pk, messages_count)
 bob = Bob(pk)
 
 start = time.time()
