@@ -5,17 +5,20 @@ import time
 class Alice:
     def __init__(self, group, private_set):
         self.group = group
+        # X = {x1,...,Xn}
         self.private_set = private_set
-        # generate a mask - random number from group
-        self.mask = group.random(ZR)
+        # generate a secret key a(alfa)
+        self.secretKey = group.random(ZR)
 
     def maskSet(self):
-        maskedSet = [self.group.hash(i, G1) ** self.mask for i in self.private_set]
+        # A[i] = (H(xi))^a
+        maskedSet = [self.group.hash(item, G1) ** self.secretKey for item in self.private_set]
         return maskedSet
 
     def verify(self, receiver_set, challenge):
-        common_mask = [i ** self.mask for i in receiver_set]
-        # find common elements by & operator
+        # D[i] = B[i]**a
+        common_mask = [item ** self.secretKey for item in receiver_set]
+        # find common elements by '&' operator in sets C , D
         common_elements = set(common_mask) & set(challenge)
         return list(common_elements)
 
@@ -23,12 +26,16 @@ class Alice:
 class Bob:
     def __init__(self, group, private_set):
         self.group = group
+        # Y = {y1,...,yM}
         self.private_set = private_set
-        self.mask = group.random(ZR)
+        # generate secret key B
+        self.secretKey = group.random(ZR)
 
     def maskSet(self, initiator_set):
-        masked_set = [self.group.hash(i, G1) ** self.mask for i in self.private_set]
-        challenge = [i ** self.mask for i in initiator_set]
+        # B[i] = (H(yi))**b
+        masked_set = [self.group.hash(item, G1) ** self.secretKey for item in self.private_set]
+        # C[i] = A[i]**b
+        challenge = [item ** self.secretKey for item in initiator_set]
         return masked_set, challenge
 
 
@@ -74,3 +81,24 @@ if intersecting_amount == len(common_elements):
     print("Execution time {}s".format(end - start))
 else:
     print("Desired amount of intersecting items does not match calculated one")
+
+
+'''
+     Alice(X,N,a)                         Bob(Y,M,b)
+
+A[i] = H(xi)^a
+                          A
+                         ->                 
+                                           B[i] = H(yi)^b
+                                           C[i] = A[i]^b = H(xi)^ab
+                        B,C
+                        <-
+
+D[i] = B[i]**a = H(yi)^ab
+
+teraz Alice ma oba sety i moze znalezc wspolne elementy
+
+
+
+
+'''

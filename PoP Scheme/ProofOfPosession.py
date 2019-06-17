@@ -41,8 +41,12 @@ class Client:
             return result
 
     def TagBlock(self, group):
+        # f = (m1,...,mz)
+        # Tf = ((m1,t1),...,(mz,tz))
         TaggedBlock = []
+        # L_f = Poly()
         for i in range(self.z):
+            # t_i <- L_f(m_i)
             y = self.EvaluatePolynomial(self.file_id[i])
             TaggedBlock.append((self.file_id[i], y))
         return TaggedBlock
@@ -76,8 +80,10 @@ class Server:
         self.group = group
 
     def GenProof(self, tagged_block, H):
+        # H = <g^r , x_c, g^rLf(0)>
         # poseidon weapon sign - trident
         psi = []
+        # foreach (m_i, t_i) in T_f <- tagged block
         for i in range(len(tagged_block)):
             # psi <- psi U {(m_i,(g^r)^ti)}
             psi.append((tagged_block[i][0], H[0] ** tagged_block[i][1]))
@@ -85,6 +91,7 @@ class Server:
         # psi prim <- psi U {(0,g^rL_f(0))}
         psi_prim = psi
         psi_prim.insert(0, (0, H[2]))
+        # H[2] = g^rLf(0)
 
         # Pf <- LIexp (x_c, psi prim)
         Pf = self.LagrangianInterpolation(H[1], psi_prim)
