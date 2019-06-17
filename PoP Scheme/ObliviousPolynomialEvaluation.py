@@ -1,4 +1,5 @@
-import random, time
+import random
+import time
 from functools import reduce
 
 from charm.core.math.integer import reduce as reduce_int

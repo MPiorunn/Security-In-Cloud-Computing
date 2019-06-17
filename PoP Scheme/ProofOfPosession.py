@@ -8,9 +8,13 @@ class Client:
         self.group = group
 
     def Setup(self, z):
+        # degree of polynomial
         self.z = z
+        # group
         self.g = self.group.random(G1)
+        # secret key
         self.sk = self.group.random(ZR)
+        # list of block identifiers: ID()
         self.file_id = []
         for i in range(0, z):
             self.file_id.append(self.group.random(ZR))
@@ -18,30 +22,28 @@ class Client:
     def Poly(self, group):
         # create a polynomial of degree 'z'
         self.polynomial = []
+        #     L_f(x) <- sum(i=0,z) a_i x^i
         for i in range(0, self.z):
             # ai <- SPRNG(sk,id(f),.,i)
             self.polynomial.append(self.group.hash((self.sk, self.file_id[i], i)))
 
-    #     L_f(x) <- sum a_i x^i
-
-    def EvaluatePolynomial(self, coefficients, x):
-        if len(coefficients) == 0:
+    def EvaluatePolynomial(self, x):
+        if len(self.polynomial) == 0:
             return
-        elif len(coefficients) == 1:
-            result = coefficients[0]
+        elif len(self.polynomial) == 1:
+            result = self.polynomial[0]
             return result
         else:
-            y = coefficients[len(coefficients) - 1]
-            for i in range(len(coefficients) - 2, 0, -1):
-                y = y * x
-                y = y + coefficients[i]
+            y = self.polynomial[0]
+            for i in range(len(self.polynomial)):
+                y = y + (x ** i) * self.polynomial[i]
             result = y
             return result
 
     def TagBlock(self, group):
         TaggedBlock = []
         for i in range(self.z):
-            y = self.EvaluatePolynomial(self.polynomial, self.file_id[i])
+            y = self.EvaluatePolynomial(self.file_id[i])
             TaggedBlock.append((self.file_id[i], y))
         return TaggedBlock
 
@@ -55,8 +57,8 @@ class Client:
                 xc = group.random(ZR)
                 break
 
-        Lf_xc = self.EvaluatePolynomial(self.polynomial, xc)
-        Lf_xo = self.EvaluatePolynomial(self.polynomial, 0)
+        Lf_xc = self.EvaluatePolynomial(xc)
+        Lf_xo = self.EvaluatePolynomial(0)
 
         R = self.g ** r
         # K_f = g^rL_f(x_c)
@@ -113,7 +115,7 @@ client = Client(group)
 server = Server(group)
 # start time measurement
 start = time.time()
-# Procedure 1 - setup algorithm
+# Procedure 1 - setup algorithm, set polynomial degree
 client.Setup(100)
 
 # Procedure 2 - polynomial generating sub-procedure
