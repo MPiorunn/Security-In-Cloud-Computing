@@ -23,7 +23,14 @@ class Alice:
         common_mask = [item ** self.secretKey for item in receiver_set]
         # find common elements by '&' operator in sets C , D
         common_elements = set(common_mask) & set(challenge)
-        return list(common_elements)
+
+        count = 0
+        for i in range(len(common_mask)):
+            for j in range(len(challenge)):
+                if common_mask[i] == challenge[j]:
+                    count += 1
+                    print("{} Common element {}".format(count, self.private_set[j]))
+        return list(common_elements), count
 
 
 class Bob:
@@ -80,15 +87,14 @@ maskedAliceSet = alice.maskSet()
 
 maskedBobSet, challenge = bob.maskSet(maskedAliceSet)
 
-common_elements = alice.verify(maskedBobSet, challenge)
+common_elements, count = alice.verify(maskedBobSet, challenge)
 
 end = time.time()
 if intersecting_amount == len(common_elements):
-    print("Alice and Bob have {0} common elements".format(len(common_elements)))
+    print("Alice and Bob have {0} common elements".format(count))
     print("Execution time {}s".format(end - start))
 else:
     print("Desired amount of intersecting items does not match calculated one")
-
 
 '''
      Alice(X,N,a)                         Bob(Y,M,b)

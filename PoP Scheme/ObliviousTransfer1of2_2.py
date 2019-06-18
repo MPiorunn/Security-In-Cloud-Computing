@@ -36,8 +36,6 @@ class Alice:
         self.sk = sk
         self.m0 = random(sk['N'])
         self.m1 = random(sk['N'])
-        print(self.m0)
-        print(self.m1)
 
     def generatePublicKey(self):
         return self.generator, self.public_key
@@ -53,6 +51,9 @@ class Alice:
         self.m0p = self.m0 + self.k0
         self.m1p = self.m1 + self.k1
         return self.m0p, self.m1p
+
+    def getMessages(self):
+        return self.m0, self.m1
 
 
 class Bob:
@@ -94,5 +95,7 @@ bob = Bob(pk)
 x0, x1 = alice.getRandomMessages()
 v = bob.getV(x0, x1)
 m0p, m1p = alice.sendMessagesToBob(v)
-result = bob.decryptMessages(m0p, m1p)
-print(result)
+mb = bob.decryptMessages(m0p, m1p)
+
+if mb in alice.getMessages():
+    print("SUCCESS")
