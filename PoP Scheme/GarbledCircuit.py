@@ -1,4 +1,4 @@
-import os, random
+import os, random, time
 
 from charm.core.math.pairing import hashPair as h
 from charm.toolbox.pairinggroup import PairingGroup, ZR, G1
@@ -6,61 +6,81 @@ from charm.toolbox.symcrypto import SymmetricCryptoAbstraction
 
 
 class Alice:
-    def __init__(self, group):
+    def __init__(self, group, bit):
         self.group = group
         self.generator = group.random(G1)
         self.sk = self.group.random(ZR)
         self.pk = self.generator ** self.sk
 
-        self.A0, self.A1 = [self.group.random(G1) for i in range(2)]
-        self.B0, self.B1 = [self.group.random(G1) for i in range(2)]
+        self.kx0, self.kx1 = [self.group.random(G1) for i in range(2)]
+        self.ky0, self.ky1 = [self.group.random(G1) for i in range(2)]
+        self.kz0, self.kz1 = [os.urandom(128) for i in range(2)]
 
-        self.encryption_keys = [self.A0, self.A1]
-        self.message = [self.B0, self.B1]
+        # Encryption keys for each "AND" input
+        self.keys = [self.kx0, self.kx1]
+
+        self.message = [self.ky0, self.ky1]
 
         self.random = [self.group.random(ZR) for i in range(2)]
-        self.keys = [self.A0, self.A1]
+
+        self.bit = bit
+
+    def createGCT(self):
+        gct = [
+            # Ekx0(Eky0(kz0))
+            encrypt(self.kx0, self.ky0, self.kz0),
+
+            # Ekx0(Eky1(kz0))
+            encrypt(self.kx0, self.ky1, self.kz0),
+
+            # Ekx1(Eky0(kz0))
+            encrypt(self.kx1, self.ky0, self.kz0),
+
+            # Ekx1(Eky1(kz1))
+            encrypt(self.kx1, self.ky1, self.kz1)
+        ]
+        return gct
 
     def getPublicKey(self):
         return self.generator, self.pk
 
-    def generateRandom(self):
+    def generateRandomMessages(self):
         return [self.generator ** self.random[i] for i in range(2)]
 
-    def mask(self, set):
-        mask = [set ** (1 / self.random[i]) for i in range(2)]
+    def mask(self, s):
+        mask = [s ** (1 / self.random[i]) for i in range(2)]
         return [mask[i] * self.message[i] for i in range(2)]
+
+    def getFirstKey(self):
+        return self.kx0 if self.bit == 0 else self.kx1
 
 
 class Bob:
-    def __init__(self, group, generator, pk):
+    def __init__(self, group, generator, pk, bit):
         self.group = group
         self.generator = generator
         self.pk = pk
-        self.C0, self.C1 = [os.urandom(128) for i in range(2)]
+        self.bit = bit
 
-    def returnC0C1(self):
-        return self.C0, self.C1
+    def setFirstKey(self, key):
+        self.firstKey = key
 
-    def computeSet(self, random, key):
-        self.key = key
+    def generateS(self, random):
         self.alpha = self.group.random(ZR)
-        return random[key] ** self.alpha
+        return random[self.bit] ** self.alpha
 
-    def computeMessage(self, mask):
-        self.message = mask[self.key] / (self.generator ** self.alpha)
-        return self.message
+    def computeSecondKey(self, mask):
+        self.secondKey = mask[self.bit] / (self.generator ** self.alpha)
 
-    def decrypt(self, table, key, alice_keys):
+    def decrypt(self, table):
+        ciphers = []
         for i, t in enumerate(table):
             try:
-                a = decrypt(alice_keys[key], self.message, t)
-                if a == self.C1:
-                    print("Result = 1")
-                elif a == self.C0:
-                    print("Result = 0")
+                ciphers.append(decrypt(self.firstKey, self.secondKey, t))
             except:
                 pass
+
+        return ciphers
 
 
 def encrypt(k1, k2, msg):
@@ -78,31 +98,45 @@ def decrypt(k1, k2, ctx):
 
 
 group = PairingGroup('SS512')
+alice_bit = 1
+bob_bit = 1
 
-alice = Alice(group)
+start = time.time()
+alice = Alice(group, alice_bit)
 generator, pk = alice.getPublicKey()
-bob = Bob(group, generator, pk)
+bob = Bob(group, generator, pk, bob_bit)
 
-C0, C1 = bob.returnC0C1()
-alice_key = 1
-bob_key = 0
+# Prepare Garbled Computation Table (GCT)
+garbledCircuit = alice.createGCT()
 
-garbledCircuit = [
-    encrypt(alice.A0, alice.B0, C0),
-    encrypt(alice.A0, alice.B1, C0),
-    encrypt(alice.A1, alice.B0, C0),
-    encrypt(alice.A1, alice.B1, C1)
-]
-# shuffle circuit
+# shuffle circuit so the order is random
 random.shuffle(garbledCircuit)
-random = alice.generateRandom()
+
+# send first encryption key to Bob
+kxb = alice.getFirstKey()
+bob.setFirstKey(kxb)
 
 # Oblivious transfer
-set = bob.computeSet(random, alice_key)
 
-# mask messages
-mask = alice.mask(set)
+# Alice generates x0 , x1
+random = alice.generateRandomMessages()
 
-message = bob.computeMessage(mask)  #
+# Bob
+s = bob.generateS(random)
 
-bob.decrypt(garbledCircuit, bob_key, alice.keys)
+maskedSecondKey = alice.mask(s)
+
+bob.computeSecondKey(maskedSecondKey)
+
+result = bob.decrypt(garbledCircuit)
+
+if alice.kz0 in result:
+    end = time.time()
+    print("Result = 0")
+    print("Execution time {}".format(end - start))
+elif alice.kz1 in result:
+    end = time.time()
+    print("Result = 1")
+    print("Execution time {}".format(end - start))
+else:
+    print("Wrong protocol execution")

@@ -33,16 +33,17 @@ class RSA:
 
 class Alice:
     def __init__(self, sk, pk, count):
+        self.count = count
         self.sk = sk
         self.pk = pk
-        self.message = [random(sk['N']) for i in range(count)]
+        self.message = [random(sk['N']) for i in range(self.count)]
 
-    def randomGen(self):
-        self.randoms = [random(self.sk['N']) for i in range(count)]
-        return self.randoms
+    def generateA(self):
+        self.A = [random(self.sk['N']) for i in range(self.count)]
+        return self.A
 
     def mask(self, vector):
-        masked = [((vector - self.randoms[i]) ** self.sk['d']) % self.sk['N'] for i in range(len(self.message))]
+        masked = [((vector - self.A[i]) ** self.sk['d']) % self.sk['N'] for i in range(len(self.message))]
         return [self.message[i] + masked[i] for i in range(len(self.message))]
 
 
@@ -50,11 +51,11 @@ class Bob:
     def __init__(self, pk):
         self.pk = pk
 
-    def computeVector(self, randoms, index):
+    def getV(self, A, index):
         self.index = index
         self.k = random(self.pk['N'])
-        vector = (randoms[index] + self.k ** self.pk['e']) % self.pk['N']
-        return vector
+        v = (A[index] + self.k ** self.pk['e']) % self.pk['N']
+        return v
 
     def computeMessage(self, masked):
         return masked[self.index] - self.k
@@ -70,13 +71,14 @@ alice = Alice(sk, pk, messages_count)
 bob = Bob(pk)
 
 start = time.time()
-randoms = alice.randomGen()
+A = alice.generateA()
+
 # specify index of message that Bob wants to compute
 index = 10
 
-vector = bob.computeVector(randoms, index)
+v = bob.getV(A, index)
 
-masked = alice.mask(vector)
+masked = alice.mask(v)
 message = bob.computeMessage(masked)
 
 end = time.time()
@@ -87,3 +89,13 @@ if message == alice.message[index]:
 
 else:
     print("FAILURE")
+
+
+
+'''
+Alice (sk,pk,count)                                       Bob (pk)
+
+A = random
+
+
+'''

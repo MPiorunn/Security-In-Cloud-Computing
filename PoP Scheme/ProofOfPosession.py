@@ -55,6 +55,8 @@ class Client:
         # r <- Zq
         r = self.group.random(ZR)
         # x_c <- Zq x_c != m_i
+        zero = self.group.random(ZR)
+        zero = zero - zero
         xc = self.group.random(ZR)
         for i in range(self.z):
             if xc == self.file_id[i]:
@@ -81,7 +83,10 @@ class Server:
 
     def GenProof(self, tagged_block, H):
         # H = <g^r , x_c, g^rLf(0)>
-        # poseidon weapon sign - trident
+        # poseidon weapon sign - trident - psi
+
+        zero = self.group.random(ZR)
+        zero = zero - zero
         psi = []
         # foreach (m_i, t_i) in T_f <- tagged block
         for i in range(len(tagged_block)):
@@ -90,23 +95,28 @@ class Server:
         # trident prim
         # psi prim <- psi U {(0,g^rL_f(0))}
         psi_prim = psi
-        psi_prim.insert(0, (0, H[2]))
+        psi_prim.insert(0, (zero, H[2]))
         # H[2] = g^rLf(0)
 
         # Pf <- LIexp (x_c, psi prim)
-        Pf = self.LagrangianInterpolation(H[1], psi_prim)
+        Pf = self.LagrangianInterpolation(H[0], H[1], psi_prim)
         return Pf
 
-    def LagrangianInterpolation(self, S, points):
-        # CREATE A POLYNOMIAL L_f (x) FROM POINTS (x_1,y_1)...(x_n, y_n)
+    def LagrangianInterpolation(self, gr, S, A):
+        # A = (<x0,g^(rL0)> , ... , <xz, g^(rLz)>)
         r = ()
+        x = []
+        y = []
+        for i in range(len(A)):
+            x.append(A[i][0])
+            y.append(A[i][1])
         t = self.group.random(ZR)
         t = t / t
-        for i in range(len(points)):
-            for j in range(len(points)):
+        for i in range(len(A)):
+            for j in range(len(A)):
                 if j != i:
-                    t = t * (S - points[j][0]) / (points[i][0] - points[j][0])
-            v = t * points[i][1]
+                    t = t * (S - x[j]) / (x[j] - x[i])
+            v = t * y[i]
             r += (v,)
             t /= t
         p = self.group.random(G1)

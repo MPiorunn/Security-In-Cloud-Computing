@@ -55,9 +55,11 @@ class Bob:
     def __init__(self, group, k):
         self.k = k
         self.group = group
+        # Alpha - we want to know P(alpha)
         self.alpha = group.random()
-        # Generate Bobs polynomial S to mask point A
+        # Generate Bobs polynomial S
         self.S = Polynomial([group.random() for _ in range(k + 1)])
+        # Added point (0,alpha) to the polynomial S
         self.S.__set_item__(0, self.alpha)
 
     def generateR(self, expansion_ratio, degree_of_polynomial):
@@ -80,9 +82,12 @@ class Bob:
 group = IntegerGroupQ()
 group.paramgen(256)
 
-k = 5  # n = k * degree_of_polynomial
+# security parameter
+k = 5
+
 degree_of_polynomial = 10
-expansion_ratio = 5
+
+m = 5
 
 start = time.time()
 # generate polynomial and masked polynomial with point (0,0)
@@ -90,13 +95,12 @@ alice = Alice(group, k, degree_of_polynomial)
 bob = Bob(group, k)
 
 # polynomial used to calculate P(A)
-R = bob.generateR(expansion_ratio, degree_of_polynomial)
+R = bob.generateR(m, degree_of_polynomial)
 # generate Q polynomial, one of points of this polynomial will be Bobs wanted
 Q = alice.generate_Q(R)
 
 end = time.time()
 
-print(alice)
 if alice.polynomial.__call__(bob.alpha) == bob.getValue(Q):
     print("What Alice sent {}".format(alice.polynomial.__call__(bob.alpha)))
     print("What obtained Bob {}".format(bob.getValue(Q)))

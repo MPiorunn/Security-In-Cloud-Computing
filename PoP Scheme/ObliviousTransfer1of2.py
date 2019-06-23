@@ -1,45 +1,76 @@
-from charm.toolbox.pairinggroup import PairingGroup, ZR, G1
+from charm.core.math.integer import isPrime, gcd, random, randomPrime, toInt
 import time
 
-class ELGamal:
-    def __init__(self, group, generator):
-        self.group = group
-        self.generator = generator
 
-    def encrypt(self, expansion_ratio, h):
-        y = self.group.random(ZR)
-        return self.generator ** y, h ** y * expansion_ratio
+class RSA:
+    def __init__(self, secparam):
 
-    def decrypt(self, C, x):
-        return C[1] / (C[0] ** x)
+        # generate p,q
+        while True:
+            p, q = randomPrime(secparam), randomPrime(secparam)
+            if isPrime(p) and isPrime(q) and p != q:
+                N = p * q
+                phi = (p - 1) * (q - 1)
+                break
+
+        # calculate private key and public key
+        while True:
+            e = random(phi)
+            if not gcd(e, phi) == 1:
+                continue
+            d = e ** -1
+            break
+
+        # prepare public key
+        self.pk = {'N': N, 'e': toInt(e)}
+
+        # prepare private key
+        self.sk = {'phi': phi, 'd': d, 'N': N}
+
+    def keygen(self):
+        return self.sk, self.pk
 
 
 class Alice:
-    def __init__(self, group):
-        self.group = group
-        self.secret_key = self.group.random(ZR)
-        self.generator = self.group.random(G1)
-        self.public_key = self.generator ** self.secret_key
+    def __init__(self, sk):
+        self.sk = sk
+        self.m0 = random(sk['N'])
+        self.m1 = random(sk['N'])
 
     def generatePublicKey(self):
         return self.generator, self.public_key
 
-    def PrepareMessages(self, B, m0, m1, elgamal):
-        k0 = self.group.hash(self.group.serialize(B ** self.secret_key))
-        k1 = self.group.hash(self.group.serialize((B / self.public_key) ** self.secret_key))
-        h0 = self.generator ** k0
-        h1 = self.generator ** k1
-        return elgamal.encrypt(m0, h0), elgamal.encrypt(m1, h1)
+    def getRandomMessages(self):
+        self.x0 = random(self.sk['N'])
+        self.x1 = random(self.sk['N'])
+        return self.x0, self.x1
+
+    def sendMessagesToBob(self, v):
+        self.k0 = ((v - self.x0) ** self.sk['d']) % self.sk['N']
+        self.k1 = ((v - self.x1) ** self.sk['d']) % self.sk['N']
+        self.m0p = self.m0 + self.k0
+        self.m1p = self.m1 + self.k1
+        return self.m0p, self.m1p
+
+    def getMessages(self):
+        return self.m0, self.m1
 
 
 class Bob:
-    def __init__(self, group, generator, public_key):
-        self.group = group
-        self.generator = generator
-        self.public_key = public_key
-        # which message Bob wants to receive
+    def __init__(self, pk):
+        self.pk = pk
         self.c = 0
-        self.b = self.group.random(ZR)
+
+    def getV(self, x0, x1):
+        # self.b = 0
+        self.b = 1
+        if self.b == 0:
+            self.xb = x0
+        else:
+            self.xb = x1
+        self.k = random(self.pk['N'])
+        self.v = (self.xb + self.k ** self.pk['e']) % self.pk['N']
+        return self.v
 
     def mask(self):
         if self.c == 0:
@@ -49,32 +80,22 @@ class Bob:
         else:
             return None
 
-    def decode(self, ciphers, elgamal):
-        k = self.group.hash(self.group.serialize(self.public_key ** self.b))
-        return elgamal.decrypt(ciphers[self.c], k)
+    def decryptMessages(self, m0p, m1p):
+        if self.b == 0:
+            return m0p - self.k
+        return m1p - self.k
 
 
-group = PairingGroup('SS512')
+# RSA
+rsa = RSA(1024)
+sk, pk = rsa.keygen()
 
-alice = Alice(group)
-generator, public_key = alice.generatePublicKey()
+alice = Alice(sk)
+bob = Bob(pk)
+x0, x1 = alice.getRandomMessages()
+v = bob.getV(x0, x1)
+m0p, m1p = alice.sendMessagesToBob(v)
+mb = bob.decryptMessages(m0p, m1p)
 
-elgamal = ELGamal(group, generator)
-
-bob = Bob(group, generator, public_key)
-start = time.time()
-
-B = bob.mask()
-if B is not None:
-    m0 = group.random(G1)
-    m1 = group.random(G1)
-    ciphers = alice.PrepareMessages(B, m0, m1, elgamal)
-    decrypted = bob.decode(ciphers, elgamal)
-    end = time.time()
-    if m0 == decrypted:
-        print("Decrypted message 1")
-    elif m1 == decrypted:
-        print("Decrypted message 2")
-    else:
-        print("None of two messages were decrypted, error")
-    print("Execution time {}s".format(end - start))
+if mb in alice.getMessages():
+    print("SUCCESS")
