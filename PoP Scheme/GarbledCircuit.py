@@ -1,4 +1,6 @@
-import os, random, time
+import os
+import random
+import time
 
 from charm.core.math.pairing import hashPair as h
 from charm.toolbox.pairinggroup import PairingGroup, ZR, G1
@@ -121,7 +123,7 @@ bob.setFirstKey(kxb)
 # Alice generates x0 , x1
 random = alice.generateRandomMessages()
 
-# Bob
+# Bob sends s which is (xb - k^e) mod N
 s = bob.generateS(random)
 
 maskedSecondKey = alice.mask(s)

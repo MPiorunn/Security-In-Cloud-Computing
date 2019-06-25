@@ -1,5 +1,6 @@
 from charm.toolbox.pairinggroup import PairingGroup, ZR, G1
 import time
+import random
 
 
 class Alice:
@@ -16,6 +17,7 @@ class Alice:
 
         # A[i] = (xi)^a
         maskedSet = [item ** self.secretKey for item in self.private_set]
+        random.shuffle(maskedSet)
         return maskedSet
 
     def verify(self, receiver_set, challenge):
@@ -50,14 +52,17 @@ class Bob:
 
         # C[i] = A[i]**b
         challenge = [item ** self.secretKey for item in initiator_set]
+
         return masked_set, challenge
 
 
 def generate_sets(group, intersecting, alice_size, bob_size):
     # generate intersection set
     intersection = group.random(ZR, intersecting)
+
     # generate Alice set of size (alice_size - intersection) and add intersecting items
     alice_set = group.random(ZR, alice_size - intersecting) + intersection
+
     # generate Bob set of size (bob_size - intersection) and add intersecting items
     bob_set = group.random(ZR, bob_size - intersecting) + intersection
     return alice_set, bob_set
@@ -84,7 +89,6 @@ alice = Alice(g, aliceSet)
 bob = Bob(g, bobSet)
 
 maskedAliceSet = alice.maskSet()
-
 maskedBobSet, challenge = bob.maskSet(maskedAliceSet)
 
 common_elements, count = alice.verify(maskedBobSet, challenge)

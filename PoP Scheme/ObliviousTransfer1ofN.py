@@ -90,12 +90,3 @@ if message == alice.message[index]:
 else:
     print("FAILURE")
 
-
-
-'''
-Alice (sk,pk,count)                                       Bob (pk)
-
-A = random
-
-
-'''
