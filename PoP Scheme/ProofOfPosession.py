@@ -15,9 +15,9 @@ class Client:
         # secret key
         self.sk = self.group.random(ZR)
         # list of block identifiers: ID()
-        self.file_id = []
+        self.id = []
         for i in range(0, z):
-            self.file_id.append(self.group.random(ZR))
+            self.id.append(self.group.random(ZR))
 
     def Poly(self, group):
         # create a polynomial of degree 'z'
@@ -25,7 +25,7 @@ class Client:
         #     L_f(x) <- sum(i=0,z) a_i x^i
         for i in range(0, self.z):
             # ai <- SPRNG(sk,id(f),.,i)
-            self.polynomial.append(self.group.hash((self.sk, self.file_id[i], i)))
+            self.polynomial.append(self.group.hash((self.sk, self.id[i], i)))
 
     def EvaluatePolynomial(self, x):
         if len(self.polynomial) == 0:
@@ -47,8 +47,8 @@ class Client:
         # L_f = Poly()
         for i in range(self.z):
             # t_i <- L_f(m_i)
-            y = self.EvaluatePolynomial(self.file_id[i])
-            TaggedBlock.append((self.file_id[i], y))
+            y = self.EvaluatePolynomial(self.id[i])
+            TaggedBlock.append((self.id[i], y))
         return TaggedBlock
 
     def GenChallenge(self, group):
@@ -59,7 +59,7 @@ class Client:
         zero = zero - zero
         xc = self.group.random(ZR)
         for i in range(self.z):
-            if xc == self.file_id[i]:
+            if xc == self.id[i]:
                 xc = group.random(ZR)
                 break
 
@@ -102,28 +102,31 @@ class Server:
         Pf = self.LagrangianInterpolation(H[0], H[1], psi_prim)
         return Pf
 
-    def LagrangianInterpolation(self, gr, S, A):
+    def LagrangianInterpolation(self, gr, X, A):
         # A = (<x0,g^(rL0)> , ... , <xz, g^(rLz)>)
-        r = ()
+
+        # product of (x-xj)/(xj-xi)
+        prod_1 = ()
+
+        # product of g^ [r * L(xi) * prod_1]
+        prod_2 = self.group.random(G1)
+        prod_2 -= prod_2
         x = []
         y = []
         for i in range(len(A)):
             x.append(A[i][0])
             y.append(A[i][1])
-        t = self.group.random(ZR)
-        t = t / t
+        tmp = self.group.random(ZR)
         for i in range(len(A)):
+            tmp = tmp / tmp
             for j in range(len(A)):
                 if j != i:
-                    t = t * (S - x[j]) / (x[j] - x[i])
-            v = t * y[i]
-            r += (v,)
-            t /= t
-        p = self.group.random(G1)
-        p -= p
-        for i in range(0, len(r)):
-            p += r[i]
-        return p
+                    tmp = tmp * (X - x[j]) / (x[j] - x[i])
+            v = tmp * y[i]
+            prod_1 += (v,)
+        for i in range(0, len(prod_1)):
+            prod_2 += prod_1[i]
+        return prod_2
 
 
 # initialize group, client and server

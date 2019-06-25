@@ -42,8 +42,8 @@ class Alice:
         self.A = [random(self.sk['N']) for i in range(self.count)]
         return self.A
 
-    def mask(self, vector):
-        masked = [((vector - self.A[i]) ** self.sk['d']) % self.sk['N'] for i in range(len(self.message))]
+    def mask(self, v):
+        masked = [((v - self.A[i]) ** self.sk['d']) % self.sk['N'] for i in range(len(self.message))]
         return [self.message[i] + masked[i] for i in range(len(self.message))]
 
 
